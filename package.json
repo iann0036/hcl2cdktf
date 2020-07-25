@@ -1,0 +1,28 @@
+{
+  "name": "hcl2cdktf",
+  "version": "0.1.0",
+  "description": "Convert HCL to Terraform CDK",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://iann0036@github.com/iann0036/hcl2cdktf.git"
+  },
+  "keywords": [
+    "aws",
+    "terraform",
+    "cdk"
+  ],
+  "author": "Ian Mckay",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/iann0036/hcl2cdktf/issues"
+  },
+  "homepage": "https://github.com/iann0036/hcl2cdktf#readme",
+  "dependencies": {
+    "commander": "^6.0.0"
+  },
+  "bin": "./main.js"
+}
