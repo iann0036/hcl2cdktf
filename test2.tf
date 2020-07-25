@@ -9,6 +9,7 @@ provider "aws" {
 }
 
 provider "dnssimple" {
+  region = "us-east-1"
   a = "b"
   c = "d"
 }
@@ -36,6 +37,6 @@ resource "aws_instance" "ubuntu2" {
 resource "aws_ssm_parameter" "reftest" {
   name  = "ExampleInstanceId"
   type  = "String"
-  value = "${aws_instance.ubuntu.id}"
+  value = aws_instance.ubuntu.id
 }
 

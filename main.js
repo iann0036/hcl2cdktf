@@ -45,7 +45,7 @@ function outputMapCdktf(index, resources, type, tfvalues, name) {
     params = "{" + params.substring(0, params.length - 1) + `
         }`; // remove last comma
 
-    output += `        const ${name.toLowerCase()} = new ${type}(this, '${name}', ${params});
+    output += `        const ${name.toLowerCase()} = new ${tfToCdktfType(type)}(this, '${name}', ${params});
 
 `;
 
@@ -137,48 +137,65 @@ function convert(args) {
         isHcl2 = true;
     }
 
-    var region = 'us-east-1';
-    if (isHcl2) {
-        if (plandata['provider']['aws']['region']) {
-            region = plandata['provider']['aws']['region'];
-        }
-    } else {
-        for (var provider of plandata['provider']) {
-            if (Object.keys(provider)[0] == "aws") {
-                for (var prop of provider['aws']) {
-                    if (prop['region']) {
-                        region = prop['region'];
-                    }
-                }
-            }
-        }
-    }
+    var compiled = `import { Construct } from 'constructs';
+import { App, TerraformStack, TerraformOutput } from 'cdktf';`;
 
-    var cdktftypes = [];
+    var cdktftypes = {};
     if (isHcl2) {
-        for (var resourcetype of Object.keys(plandata['resource'])) {
-            cdktftypes.push(tfToCdktfType(resourcetype));
+        for (var resourcetype of Object.keys(plandata['resource'])) { // TODO: providers without resources not captured
+            var provider = resourcetype.split("_")[0];
+            if (!cdktftypes[provider]) {
+                cdktftypes[provider] = [];
+            }
+            cdktftypes[provider].push(tfToCdktfType(resourcetype));
+            cdktftypes[provider] = [...new Set(cdktftypes[provider])]; // dedup
         }
     } else {
         for (var resource of plandata['resource']) {
-            cdktftypes.push(tfToCdktfType(Object.keys(resource)[0]));
+            var provider = Object.keys(resource)[0].split("_")[0];
+            if (!cdktftypes[provider]) {
+                cdktftypes[provider] = [];
+            }
+            cdktftypes[provider].push(tfToCdktfType(Object.keys(resource)[0]));
+            cdktftypes[provider] = [...new Set(cdktftypes[provider])]; // dedup
         }
     }
-    cdktftypes = [...new Set(cdktftypes)]; // dedup
 
-    var compiled = `import { Construct } from 'constructs';
-import { App, TerraformStack, TerraformOutput } from 'cdktf';
-import { ${cdktftypes.join(', ')}, AwsProvider } from './.gen/providers/aws';
+    for (var provider of Object.keys(cdktftypes)) {
+        compiled += `
+import { ${cdktftypes[provider].join(', ')}, ${tfToCdktfType("_" + provider)}Provider } from './.gen/providers/${provider}';`;
+    }
+
+    compiled += `
 
 class MyStack extends TerraformStack {
     constructor(scope: Construct, name: string) {
         super(scope, name);
 
-        new AwsProvider(this, 'aws', {
-            region: '${region}'
+`;
+
+    var region = 'us-east-1';
+    if (isHcl2) {
+        for (var providername of Object.keys(plandata['provider'])) {
+            compiled += `        new ${tfToCdktfType("_" + providername)}Provider(this, '${providername}', {
+            ${Object.keys(plandata['provider'][providername]).map(prop => `${prop}: "${plandata['provider'][providername][prop]}"`).join(`,
+            `)}
         });
 
-`;
+`; // TODO: Test multi-level and a_b props
+        }
+    } else {
+        for (var provider of plandata['provider']) {
+            for (var providername of Object.keys(provider)) {
+                compiled += `        new ${tfToCdktfType("_" + providername)}Provider(this, '${providername}', {
+            ${Object.keys(provider[providername][0]).map(prop => `${prop}: "${provider[providername][0][prop]}"`).join(`,
+            `)}
+        });
+
+`; // TODO: Test multi-level and a_b props
+            }
+        }
+    }
 
     if (isHcl2) {
         var i = 0;
@@ -190,7 +207,7 @@ class MyStack extends TerraformStack {
         }
     } else {
         for (var i=0; i<plandata['resource'].length; i++) {
-            var type = tfToCdktfType(Object.keys(plandata['resource'][i])[0]);
+            var type = Object.keys(plandata['resource'][i])[0];
             var tfvalues = getTfValues(plandata['resource'][i]);
             var name = getTfName(plandata['resource'][i]);
 
