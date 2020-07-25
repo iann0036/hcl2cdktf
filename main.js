@@ -24,13 +24,9 @@ function getTfName(resource) {
     return Object.keys(Object.values(resource)[0][0])[0];
 }
 
-function outputMapCdktf(index, resources) {
+function outputMapCdktf(index, resources, type, tfvalues, name) {
     var output = '';
     var params = '';
-    
-    var type = tfToCdktfType(Object.keys(resources[index])[0]);
-
-    var tfvalues = getTfValues(resources[index]);
 
     if (Object.keys(tfvalues).length) {
         for (var option in tfvalues) {
@@ -49,7 +45,7 @@ function outputMapCdktf(index, resources) {
     params = "{" + params.substring(0, params.length - 1) + `
         }`; // remove last comma
 
-    output += `        const ${getTfName(resources[index]).toLowerCase()} = new ${type}(this, '${getTfName(resources[index])}', ${params});
+    output += `        const ${name.toLowerCase()} = new ${type}(this, '${name}', ${params});
 
 `;
 
@@ -136,20 +132,37 @@ function convert(args) {
     const filedata = fs.readFileSync(args.args[0], {encoding:'utf8', flag:'r'});
     const plandata = JSON.parse(HCL.parse(filedata));
 
-    var region = "us-east-1";
-    for (var provider of plandata['provider']) {
-        if (Object.keys(provider)[0] == "aws") {
-            for (var prop of provider['aws']) {
-                if (prop['region']) {
-                    region = prop['region'];
+    var isHcl2 = false;
+    if (!Array.isArray(plandata.resource)) {
+        isHcl2 = true;
+    }
+
+    var region = 'us-east-1';
+    if (isHcl2) {
+        if (plandata['provider']['aws']['region']) {
+            region = plandata['provider']['aws']['region'];
+        }
+    } else {
+        for (var provider of plandata['provider']) {
+            if (Object.keys(provider)[0] == "aws") {
+                for (var prop of provider['aws']) {
+                    if (prop['region']) {
+                        region = prop['region'];
+                    }
                 }
             }
         }
     }
 
     var cdktftypes = [];
-    for (var resource of plandata['resource']) {
-        cdktftypes.push(tfToCdktfType(Object.keys(resource)[0]));
+    if (isHcl2) {
+        for (var resourcetype of Object.keys(plandata['resource'])) {
+            cdktftypes.push(tfToCdktfType(resourcetype));
+        }
+    } else {
+        for (var resource of plandata['resource']) {
+            cdktftypes.push(tfToCdktfType(Object.keys(resource)[0]));
+        }
     }
     cdktftypes = [...new Set(cdktftypes)]; // dedup
 
@@ -162,22 +175,48 @@ class MyStack extends TerraformStack {
         super(scope, name);
 
         new AwsProvider(this, 'aws', {
-          region: '${region}'
+            region: '${region}'
         });
 
 `;
 
-    for (var i=0; i<plandata['resource'].length; i++) {
-        compiled += outputMapCdktf(i, plandata['resource']);
+    if (isHcl2) {
+        var i = 0;
+        for (var type of Object.keys(plandata['resource'])) {
+            for (var name of Object.keys(plandata['resource'][type])) {
+                compiled += outputMapCdktf(i, plandata['resource'], type, plandata['resource'][type][name], name);
+                i += 1;
+            }
+        }
+    } else {
+        for (var i=0; i<plandata['resource'].length; i++) {
+            var type = tfToCdktfType(Object.keys(plandata['resource'][i])[0]);
+            var tfvalues = getTfValues(plandata['resource'][i]);
+            var name = getTfName(plandata['resource'][i]);
+
+            compiled += outputMapCdktf(i, plandata['resource'], type, tfvalues, name);
+        }
     }
 
-    for (var resource of plandata['resource']) {
-        var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
-        compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
+    if (isHcl2) {
+        for (var resourcegroup of Object.values(plandata['resource'])) {
+            for (var resourcename of Object.keys(resourcegroup)) {
+                compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
             value: ${r=resourcename.toLowerCase()}
         });
 
 `;
+            }
+        }
+    } else {
+        for (var resource of plandata['resource']) {
+            var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
+            compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
+            value: ${r=resourcename.toLowerCase()}
+        });
+
+`;
+        }
     }
 
     compiled += `    }
