@@ -12,18 +12,16 @@ npm i -g hcl2cdktf
 
 ## Usage
 
-> **NOTE:** This project currently requires you to have `terraform` in your PATH
-
-You should specify a Terraform plan file for processing:
+You should specify a Terraform file for processing:
 
 ```
-hcl2cdktf myplanfile.tfplan
+hcl2cdktf myplanfile.tf
 ```
 
 To output to a specific file instead of to stdout:
 
 ```
-hcl2cdktf myplanfile.tfplan -o mycdktf.ts
+hcl2cdktf myplanfile.tf -o mycdktf.ts
 ```
 
 #### -o, --output-filename &lt;filename&gt;

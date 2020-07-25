@@ -1,6 +1,6 @@
 {
   "name": "hcl2cdktf",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Convert HCL to Terraform CDK",
   "main": "main.js",
   "scripts": {
@@ -22,7 +22,8 @@
   },
   "homepage": "https://github.com/iann0036/hcl2cdktf#readme",
   "dependencies": {
-    "commander": "^6.0.0"
+    "commander": "^6.0.0",
+    "js-hcl-parser": "^1.0.1"
   },
   "bin": "./main.js"
 }

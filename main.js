@@ -2,7 +2,7 @@
 
 const commander = require('commander');
 const fs = require('fs');
-const { spawnSync } = require('child_process');
+const HCL = require("js-hcl-parser");
 
 function tfToCdktfProp(str) {
     var split = str.split("_");
@@ -16,17 +16,27 @@ function tfToCdktfType(str) {
     return typesplit.map(x => x[0].toUpperCase() + x.substr(1)).join('');
 }
 
+function getTfValues(resource) {
+    return Object.values(Object.values(resource)[0][0])[0][0];
+}
+
+function getTfName(resource) {
+    return Object.keys(Object.values(resource)[0][0])[0];
+}
+
 function outputMapCdktf(index, resources) {
     var output = '';
     var params = '';
     
-    var type = tfToCdktfType(resources[index].type);
+    var type = tfToCdktfType(Object.keys(resources[index])[0]);
 
-    if (Object.keys(resources[index]['values']).length) {
-        for (var option in resources[index]['values']) {
-            if (typeof resources[index]['values'][option] !== "undefined" && resources[index]['values'][option] !== null) {
+    var tfvalues = getTfValues(resources[index]);
+
+    if (Object.keys(tfvalues).length) {
+        for (var option in tfvalues) {
+            if (typeof tfvalues[option] !== "undefined" && tfvalues[option] !== null) {
                 var initialSpacing = 12;
-                var optionvalue = processCdktfParameter(resources[index]['values'][option], initialSpacing, index, resources);
+                var optionvalue = processCdktfParameter(tfvalues[option], initialSpacing, index, resources);
 
                 if (typeof optionvalue !== "undefined") {
                     params += `
@@ -39,7 +49,7 @@ function outputMapCdktf(index, resources) {
     params = "{" + params.substring(0, params.length - 1) + `
         }`; // remove last comma
 
-    output += `        const ${resources[index].name.toLowerCase()} = new ${type}(this, '${resources[index].name}', ${params});
+    output += `        const ${getTfName(resources[index]).toLowerCase()} = new ${type}(this, '${getTfName(resources[index])}', ${params});
 
 `;
 
@@ -57,36 +67,12 @@ function processCdktfParameter(param, spacing, index, resources) {
         return 'false';
     }
     if (typeof param == "number") {
-        /*for (var i = 0; i < resources.length; i++) { // correlate
-            if (circularReferenceFound(i, index, 'cdktf')) {
-                continue;
-            }
-
-            if (resources[i].returnValues && resources[i].returnValues.Terraform) {
-                for (var attr_name in resources[i].returnValues.Terraform) {
-                    if (resources[i].returnValues.Terraform[attr_name] == param) {
-                        return resources[i].logicalId.toLowerCase() + "." + attr_name;
-                    }
-                }
-            }
-        }*/
-
         return param;
     }
     if (typeof param == "string") {
-        /*for (var i = 0; i < resources.length; i++) { // correlate
-            if (circularReferenceFound(i, index, 'cdktf')) {
-                continue;
-            }
-
-            if (resources[i].returnValues && resources[i].returnValues.Terraform) {
-                for (var attr_name in resources[i].returnValues.Terraform) {
-                    if (resources[i].returnValues.Terraform[attr_name] == param) {
-                        return resources[i].logicalId.toLowerCase() + "." + attr_name;
-                    }
-                }
-            }
-        }*/
+        if (param.startsWith("${") && param.endsWith("}")) { // refs
+            return param.substring(param.indexOf(".") + 1, param.length - 1);
+        }
 
         var string_return = param;
 
@@ -143,30 +129,27 @@ function processCdktfParameter(param, spacing, index, resources) {
 
 function convert(args) {
     if (!args || !args.args || !args.args[0]) {
-        throw "Could not determine correct arguments";
+        commander.help();
+        process.exit(0);
     }
 
     const filedata = fs.readFileSync(args.args[0], {encoding:'utf8', flag:'r'});
-    var plandata = {};
+    const plandata = JSON.parse(HCL.parse(filedata));
 
-    const child = spawnSync('terraform', ['show', '-json', args.args[0]]);
-
-    if (child.error) {
-        console.error(child.error.toString());
-    }
-    if (child.stderr && child.stderr.toString().trim().length > 0) {
-        console.error(child.stderr.toString());
-    }
-    plandata = JSON.parse(child.stdout.toString());
-
-    var region = plandata['configuration']['provider_config']['aws']['expressions']['region']['constant_value'];
-    if (!region || region == "") {
-        region = "us-east-1";
+    var region = "us-east-1";
+    for (var provider of plandata['provider']) {
+        if (Object.keys(provider)[0] == "aws") {
+            for (var prop of provider['aws']) {
+                if (prop['region']) {
+                    region = prop['region'];
+                }
+            }
+        }
     }
 
     var cdktftypes = [];
-    for (var resource of plandata['planned_values']['root_module']['resources']) {
-        cdktftypes.push(tfToCdktfType(resource.type));
+    for (var resource of plandata['resource']) {
+        cdktftypes.push(tfToCdktfType(Object.keys(resource)[0]));
     }
 
     var compiled = `import { Construct } from 'constructs';
@@ -183,13 +166,14 @@ class MyStack extends TerraformStack {
 
 `;
 
-    for (var i=0; i<plandata['planned_values']['root_module']['resources'].length; i++) {
-        compiled += outputMapCdktf(i, plandata['planned_values']['root_module']['resources']);
+    for (var i=0; i<plandata['resource'].length; i++) {
+        compiled += outputMapCdktf(i, plandata['resource']);
     }
 
-    for (var resource of plandata['planned_values']['root_module']['resources']) {
-        compiled += `        new TerraformOutput(this, '${resource.name.toLowerCase()}', {
-            value: ${resource.name.toLowerCase()}
+    for (var resource of plandata['resource']) {
+        var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
+        compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
+            value: ${r=resourcename.toLowerCase()}
         });
 
 `;
