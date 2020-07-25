@@ -1,4 +1,4 @@
-# hcl2cdktf [WORK IN PROGRESS]
+# hcl2cdktf
 
 <span class="badge-npmversion"><a href="https://npmjs.org/package/hcl2cdktf" title="View this project on NPM"><img src="https://img.shields.io/npm/v/hcl2cdktf.svg" alt="NPM version" /></a></span>
 
@@ -15,13 +15,13 @@ npm i -g hcl2cdktf
 You should specify a Terraform file for processing:
 
 ```
-hcl2cdktf myplanfile.tf
+hcl2cdktf test.tf
 ```
 
 To output to a specific file instead of to stdout:
 
 ```
-hcl2cdktf myplanfile.tf -o mycdktf.ts
+hcl2cdktf test.tf -o mycdktf.ts
 ```
 
 #### -o, --output-filename &lt;filename&gt;
