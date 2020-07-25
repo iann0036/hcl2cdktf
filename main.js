@@ -151,6 +151,7 @@ function convert(args) {
     for (var resource of plandata['resource']) {
         cdktftypes.push(tfToCdktfType(Object.keys(resource)[0]));
     }
+    cdktftypes = [...new Set(cdktftypes)]; // dedup
 
     var compiled = `import { Construct } from 'constructs';
 import { App, TerraformStack, TerraformOutput } from 'cdktf';
