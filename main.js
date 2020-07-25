@@ -41,7 +41,7 @@ function outputMapCdktf(index, resources, type, tfvalues, name) {
             }
         }
     }
-    
+
     params = "{" + params.substring(0, params.length - 1) + `
         }`; // remove last comma
 
@@ -137,7 +137,7 @@ function convert(args) {
         isHcl2 = true;
     }
 
-    var compiled = `import { Construct } from 'constructs';
+    var compiled = args.bare ? '' : `import { Construct } from 'constructs';
 import { App, TerraformStack, TerraformOutput } from 'cdktf';`;
 
     var cdktftypes = {};
@@ -161,38 +161,42 @@ import { App, TerraformStack, TerraformOutput } from 'cdktf';`;
         }
     }
 
-    for (var provider of Object.keys(cdktftypes)) {
-        compiled += `
+    if (!args.bare) {
+        for (var provider of Object.keys(cdktftypes)) {
+            compiled += `
 import { ${cdktftypes[provider].join(', ')}, ${tfToCdktfType("_" + provider)}Provider } from './.gen/providers/${provider}';`;
-    }
+        }
 
-    compiled += `
+        compiled += `
 
 class MyStack extends TerraformStack {
     constructor(scope: Construct, name: string) {
         super(scope, name);
 
 `;
+    }
 
-    var region = 'us-east-1';
-    if (isHcl2) {
-        for (var providername of Object.keys(plandata['provider'])) {
-            compiled += `        new ${tfToCdktfType("_" + providername)}Provider(this, '${providername}', {
-            ${Object.keys(plandata['provider'][providername]).map(prop => `${prop}: "${plandata['provider'][providername][prop]}"`).join(`,
-            `)}
-        });
-
-`; // TODO: Test multi-level and a_b props
-        }
-    } else {
-        for (var provider of plandata['provider']) {
-            for (var providername of Object.keys(provider)) {
+    if (plandata['provider']) {
+        var region = 'us-east-1';
+        if (isHcl2) {
+            for (var providername of Object.keys(plandata['provider'])) {
                 compiled += `        new ${tfToCdktfType("_" + providername)}Provider(this, '${providername}', {
-            ${Object.keys(provider[providername][0]).map(prop => `${prop}: "${provider[providername][0][prop]}"`).join(`,
-            `)}
-        });
+                ${Object.keys(plandata['provider'][providername]).map(prop => `${prop}: "${plandata['provider'][providername][prop]}"`).join(`,
+                `)}
+            });
 
-`; // TODO: Test multi-level and a_b props
+    `; // TODO: Test multi-level and a_b props
+            }
+        } else {
+            for (var provider of plandata['provider']) {
+                for (var providername of Object.keys(provider)) {
+                    compiled += `        new ${tfToCdktfType("_" + providername)}Provider(this, '${providername}', {
+                ${Object.keys(provider[providername][0]).map(prop => `${prop}: "${provider[providername][0][prop]}"`).join(`,
+                `)}
+            });
+
+    `; // TODO: Test multi-level and a_b props
+                }
             }
         }
     }
@@ -206,7 +210,7 @@ class MyStack extends TerraformStack {
             }
         }
     } else {
-        for (var i=0; i<plandata['resource'].length; i++) {
+        for (var i = 0; i < plandata['resource'].length; i++) {
             var type = Object.keys(plandata['resource'][i])[0];
             var tfvalues = getTfValues(plandata['resource'][i]);
             var name = getTfName(plandata['resource'][i]);
@@ -215,34 +219,38 @@ class MyStack extends TerraformStack {
         }
     }
 
-    if (isHcl2) {
-        for (var resourcegroup of Object.values(plandata['resource'])) {
-            for (var resourcename of Object.keys(resourcegroup)) {
-                compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
-            value: ${r=resourcename.toLowerCase()}
-        });
+    if (!args.bare) {
+        if (isHcl2) {
+            for (var resourcegroup of Object.values(plandata['resource'])) {
+                for (var resourcename of Object.keys(resourcegroup)) {
+                    compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
+                value: ${r = resourcename.toLowerCase()}
+            });
 
-`;
+        `;
+                }
             }
-        }
-    } else {
-        for (var resource of plandata['resource']) {
-            var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
-            compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
-            value: ${r=resourcename.toLowerCase()}
-        });
+        } else {
+            for (var resource of plandata['resource']) {
+                var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
+                compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
+                    value: ${r = resourcename.toLowerCase()}
+                });
 
-`;
+        `;
+            }
         }
     }
 
-    compiled += `    }
+    if (!args.bare) {
+        compiled += `    }
 }
 
 const app = new App();
 new MyStack(app, 'my-stack');
 app.synth();
 `;
+    }
 
     return compiled;
 }
@@ -251,6 +259,7 @@ function main() {
     commander
         .arguments('<filename>', 'filename of the Terraform plan')
         .option('-o, --output-filename <filename>', 'the filename of the output file')
+        .option('-b, --bare', 'Omit boilerplate like imports and class generation')
 
     const args = commander.parse(process.argv);
 
