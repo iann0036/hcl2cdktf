@@ -1,6 +1,6 @@
 {
   "name": "hcl2cdktf",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Convert HCL to Terraform CDK",
   "main": "main.js",
   "scripts": {

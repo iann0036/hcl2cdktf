@@ -12,6 +12,8 @@ npm i -g hcl2cdktf
 
 ## Usage
 
+> **NOTE:** This project currently requires you to have `terraform` in your PATH
+
 You should specify a Terraform plan file for processing:
 
 ```
