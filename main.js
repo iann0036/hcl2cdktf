@@ -223,15 +223,15 @@ class MyStack extends TerraformStack {
 `;
                 }
             }
-        }
-    } else {
-        for (var resource of plandata['resource']) {
-            var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
-            compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
+        } else {
+            for (var resource of plandata['resource']) {
+                var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
+                compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
             value: ${r = resourcename.toLowerCase()}
         });
 
 `;
+            }
         }
     }
 
@@ -252,7 +252,7 @@ function main() {
     commander
         .arguments('<filename>', 'filename of the Terraform plan')
         .option('-o, --output-filename <filename>', 'the filename of the output file')
-        .option('-b, --bare', 'Omit boilerplate like imports and class generation')
+        .option('-b, --bare', 'omit boilerplate like imports and class generation')
 
     const args = commander.parse(process.argv);
 

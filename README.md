@@ -27,3 +27,7 @@ hcl2cdktf test.tf -o mycdktf.ts
 #### -o, --output-filename &lt;filename&gt;
 
 (Optional) The filename of the output file
+
+#### -b, --bare
+
+(Optional) Omit boilerplate like imports and class generation
