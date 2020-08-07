@@ -232,7 +232,6 @@ class MyStack extends TerraformStack {
         });
 
 `;
-            }
         }
     }
 
