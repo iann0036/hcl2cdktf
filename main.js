@@ -123,15 +123,8 @@ function processCdktfParameter(param, spacing, index, resources) {
     return undefined;
 }
 
-function convert(args) {
-    if (!args || !args.args || !args.args[0]) {
-        commander.help();
-        process.exit(0);
-    }
-
-    const filedata = fs.readFileSync(args.args[0], {encoding:'utf8', flag:'r'});
+function convert(filedata, args) {
     const plandata = JSON.parse(HCL.parse(filedata));
-
     var isHcl2 = false;
     if (!Array.isArray(plandata.resource)) {
         isHcl2 = true;
@@ -181,21 +174,22 @@ class MyStack extends TerraformStack {
         if (isHcl2) {
             for (var providername of Object.keys(plandata['provider'])) {
                 compiled += `        new ${tfToCdktfType("_" + providername)}Provider(this, '${providername}', {
-                ${Object.keys(plandata['provider'][providername]).map(prop => `${prop}: "${plandata['provider'][providername][prop]}"`).join(`,
-                `)}
-            });
 
-    `; // TODO: Test multi-level and a_b props
+            ${Object.keys(plandata['provider'][providername]).map(prop => `${prop}: "${plandata['provider'][providername][prop]}"`).join(`,
+            `)}
+        });
+
+`; // TODO: Test multi-level and a_b props
             }
         } else {
             for (var provider of plandata['provider']) {
                 for (var providername of Object.keys(provider)) {
                     compiled += `        new ${tfToCdktfType("_" + providername)}Provider(this, '${providername}', {
-                ${Object.keys(provider[providername][0]).map(prop => `${prop}: "${provider[providername][0][prop]}"`).join(`,
-                `)}
-            });
+            ${Object.keys(provider[providername][0]).map(prop => `${prop}: "${provider[providername][0][prop]}"`).join(`,
+            `)}
+        });
 
-    `; // TODO: Test multi-level and a_b props
+`; // TODO: Test multi-level and a_b props
                 }
             }
         }
@@ -224,18 +218,19 @@ class MyStack extends TerraformStack {
             for (var resourcegroup of Object.values(plandata['resource'])) {
                 for (var resourcename of Object.keys(resourcegroup)) {
                     compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
-                value: ${r = resourcename.toLowerCase()}
+            value: ${r = resourcename.toLowerCase()}
             });
 
         `;
                 }
             }
-        } else {
-            for (var resource of plandata['resource']) {
-                var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
-                compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
-                    value: ${r = resourcename.toLowerCase()}
-                });
+        }
+    } else {
+        for (var resource of plandata['resource']) {
+            var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
+            compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
+            value: ${r = resourcename.toLowerCase()}
+        });
 
         `;
             }
@@ -263,7 +258,12 @@ function main() {
 
     const args = commander.parse(process.argv);
 
-    const template = convert(args);
+    if (!args || !args.args || !args.args[0]) {
+        commander.help();
+        process.exit(0);
+    }
+    const filedata = fs.readFileSync(args.args[0], { encoding: 'utf8', flag: 'r' });
+    const template = convert(filedata, args);
 
     if (args.outputFilename) {
         fs.writeFileSync(args.outputFilename, template);
@@ -275,3 +275,5 @@ function main() {
 if (require.main === module) {
     main();
 }
+
+module.exports.convert = convert;
