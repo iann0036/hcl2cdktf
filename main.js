@@ -174,7 +174,6 @@ class MyStack extends TerraformStack {
         if (isHcl2) {
             for (var providername of Object.keys(plandata['provider'])) {
                 compiled += `        new ${tfToCdktfType("_" + providername)}Provider(this, '${providername}', {
-
             ${Object.keys(plandata['provider'][providername]).map(prop => `${prop}: "${plandata['provider'][providername][prop]}"`).join(`,
             `)}
         });
@@ -221,7 +220,7 @@ class MyStack extends TerraformStack {
             value: ${r = resourcename.toLowerCase()}
             });
 
-        `;
+`;
                 }
             }
         }
@@ -232,7 +231,7 @@ class MyStack extends TerraformStack {
             value: ${r = resourcename.toLowerCase()}
         });
 
-        `;
+`;
             }
         }
     }
