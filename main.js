@@ -130,7 +130,7 @@ function convert(filedata, args) {
         isHcl2 = true;
     }
 
-    var compiled = `import { Construct } from 'constructs';
+    var compiled = args.bare ? '' : `import { Construct } from 'constructs';
 import { App, TerraformStack, TerraformOutput } from 'cdktf';`;
 
     var cdktftypes = {};
@@ -154,18 +154,20 @@ import { App, TerraformStack, TerraformOutput } from 'cdktf';`;
         }
     }
 
-    for (var provider of Object.keys(cdktftypes)) {
-        compiled += `
+    if (!args.bare) {
+        for (var provider of Object.keys(cdktftypes)) {
+            compiled += `
 import { ${cdktftypes[provider].join(', ')}, ${tfToCdktfType("_" + provider)}Provider } from './.gen/providers/${provider}';`;
-    }
+        }
 
-    compiled += `
+        compiled += `
 
 class MyStack extends TerraformStack {
     constructor(scope: Construct, name: string) {
         super(scope, name);
 
 `;
+    }
 
     if (plandata['provider']) {
         var region = 'us-east-1';
@@ -210,14 +212,16 @@ class MyStack extends TerraformStack {
         }
     }
 
-    if (isHcl2) {
-        for (var resourcegroup of Object.values(plandata['resource'])) {
-            for (var resourcename of Object.keys(resourcegroup)) {
-                compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
+    if (!args.bare) {
+        if (isHcl2) {
+            for (var resourcegroup of Object.values(plandata['resource'])) {
+                for (var resourcename of Object.keys(resourcegroup)) {
+                    compiled += `        new TerraformOutput(this, '${resourcename.toLowerCase()}', {
             value: ${r = resourcename.toLowerCase()}
-        });
+            });
 
 `;
+                }
             }
         }
     } else {
@@ -228,16 +232,19 @@ class MyStack extends TerraformStack {
         });
 
 `;
+            }
         }
     }
 
-    compiled += `    }
+    if (!args.bare) {
+        compiled += `    }
 }
 
 const app = new App();
 new MyStack(app, 'my-stack');
 app.synth();
 `;
+    }
 
     return compiled;
 }
@@ -246,6 +253,7 @@ function main() {
     commander
         .arguments('<filename>', 'filename of the Terraform plan')
         .option('-o, --output-filename <filename>', 'the filename of the output file')
+        .option('-b, --bare', 'Omit boilerplate like imports and class generation')
 
     const args = commander.parse(process.argv);
 
