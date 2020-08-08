@@ -34,7 +34,7 @@ function outputMapCdktf(index, resources, type, tfvalues, name, datatype) {
         for (var option in tfvalues) {
             if (typeof tfvalues[option] !== "undefined" && tfvalues[option] !== null) {
                 var initialSpacing = 12;
-                var optionvalue = processCdktfParameter(tfvalues[option], initialSpacing, index, resources);
+                var optionvalue = processCdktfParameter(tfvalues[option], initialSpacing, index, resources, false);
 
                 if (typeof optionvalue !== "undefined") {
                     params += `
@@ -64,7 +64,7 @@ function outputMapCdktf(index, resources, type, tfvalues, name, datatype) {
     return output;
 }
 
-function processCdktfParameter(param, spacing, index, resources) {
+function processCdktfParameter(param, spacing, index, resources, inArray) {
     var paramitems = [];
 
     if (param === undefined || param === null || (Array.isArray(param) && param.length == 0))
@@ -99,7 +99,7 @@ function processCdktfParameter(param, spacing, index, resources) {
         }
 
         param.forEach(paramitem => {
-            paramitems.push(processCdktfParameter(paramitem, spacing + 4, index, resources));
+            paramitems.push(processCdktfParameter(paramitem, spacing + 4, index, resources, true));
         });
 
         return `[
@@ -112,8 +112,14 @@ function processCdktfParameter(param, spacing, index, resources) {
             return "{}";
         }
 
+        var isLikelyAttrAsBlock = false; // https://www.terraform.io/docs/configuration/attr-as-blocks.html , https://github.com/iann0036/hcl2cdktf/issues/4#issuecomment-670814681
+
         Object.keys(param).forEach(function (key) {
-            var subvalue = processCdktfParameter(param[key], spacing + 4, index, resources);
+            if (key[0] == key[0].toUpperCase()) {
+                isLikelyAttrAsBlock = true;
+            }
+
+            var subvalue = processCdktfParameter(param[key], spacing + 4, index, resources, false);
             if (typeof subvalue !== "undefined") {
                 if (subvalue[0] == '{') {
                     paramitems.push(tfToCdktfProp(key) + ": " + subvalue);
@@ -126,10 +132,17 @@ function processCdktfParameter(param, spacing, index, resources) {
             }
         });
 
-        return `{
+        if (isLikelyAttrAsBlock || inArray) {
+            return `{
 ` + ' '.repeat(spacing + 4) + paramitems.join(`,
 ` + ' '.repeat(spacing + 4)) + `
 ` + ' '.repeat(spacing) + `}`;
+        }
+
+        return `[{
+` + ' '.repeat(spacing + 4) + paramitems.join(`,
+` + ' '.repeat(spacing + 4)) + `
+` + ' '.repeat(spacing) + `}]`;
     }
 
     return undefined;
@@ -137,6 +150,7 @@ function processCdktfParameter(param, spacing, index, resources) {
 
 function convert(filedata, args) {
     const plandata = JSON.parse(HCL.parse(filedata));
+
     var isHcl2 = false;
     if (!Array.isArray(plandata.resource)) {
         isHcl2 = true;
