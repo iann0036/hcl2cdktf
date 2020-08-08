@@ -35,6 +35,7 @@ hcl2cdktf test.tf -o mycdktf.ts
 ## Supported Features
 
 - [x] HCL1 & HCL2
+- [x] Providers
 - [x] Resources
 - [x] Data Sources
 - [x] Outputs
