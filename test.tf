@@ -41,7 +41,7 @@ resource "aws_instance" "ubuntu" {
 
 resource "aws_instance" "ubuntu2" {
   ami               = "ami-0ff8a91507f77f867"
-  instance_type     = aws_ssm_parameter.ssmdatasource.value
+  instance_type     = "${aws_ssm_parameter.ssmdatasource.value}"
   availability_zone = "us-east-1a"
 
   tags = {
