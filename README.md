@@ -40,3 +40,4 @@ hcl2cdktf test.tf -o mycdktf.ts
 - [x] Data Sources
 - [x] Outputs
 - [x] Attribute referencing
+- [x] Locals (via escape hatch)

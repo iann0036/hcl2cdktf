@@ -51,8 +51,12 @@ function outputMapCdktf(index, resources, type, tfvalues, name, datatype) {
         output += `        new TerraformOutput(this, '${name}', ${params});
 
 `;
-    } else {
+    } else if (datatype == 'resource' || datatype == 'data') {
         output += `        const ${name.toLowerCase()} = new ${datatype == 'data' ? 'Data' : ''}${tfToCdktfType(type, (datatype == 'data'))}(this, '${name}', ${params});
+
+`;
+    } else {
+        output += `        this.addOverride('${datatype}', ${params});
 
 `;
     }
@@ -122,10 +126,10 @@ function processCdktfParameter(param, spacing, index, resources) {
             }
         });
 
-        return `[{
+        return `{
 ` + ' '.repeat(spacing + 4) + paramitems.join(`,
 ` + ' '.repeat(spacing + 4)) + `
-` + ' '.repeat(spacing) + `}]`;
+` + ' '.repeat(spacing) + `}`;
     }
 
     return undefined;
@@ -225,6 +229,15 @@ class MyStack extends TerraformStack {
 `; // TODO: Test multi-level and a_b props
                 }
             }
+        }
+    }
+
+    // section: locals (and any other escape hatches)
+    for (var datatype of ['locals']) {
+        if (plandata[datatype]) {
+            if (isHcl2) {
+                compiled += outputMapCdktf(i, plandata[datatype], datatype, plandata[datatype], '', datatype);
+            } // ignores HCL1
         }
     }
 
