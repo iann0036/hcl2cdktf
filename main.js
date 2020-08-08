@@ -132,6 +132,23 @@ function processCdktfParameter(param, spacing, index, resources, inArray) {
             }
         });
 
+        if (isLikelyAttrAsBlock && !inArray) { // reprocess ignoring case changes if likely an attribute block
+            paramitems = [];
+            Object.keys(param).forEach(function (key) {
+                var subvalue = processCdktfParameter(param[key], spacing + 4, index, resources, false);
+                if (typeof subvalue !== "undefined") {
+                    if (subvalue[0] == '{') {
+                        paramitems.push(key + ": " + subvalue);
+                    } else {
+                        if (key.match(/^[0-9]+$/g)) {
+                            key = "\"" + key + "\"";
+                        }
+                        paramitems.push(key + ": " + subvalue);
+                    }
+                }
+            });
+        }
+
         if (isLikelyAttrAsBlock || inArray) {
             return `{
 ` + ' '.repeat(spacing + 4) + paramitems.join(`,
