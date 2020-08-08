@@ -31,3 +31,11 @@ hcl2cdktf test.tf -o mycdktf.ts
 #### -b, --bare
 
 (Optional) Omit boilerplate like imports and class generation
+
+## Supported Features
+
+- [x] HCL1 & HCL2
+- [x] Resources
+- [x] Data Sources
+- [x] Outputs
+- [x] Attribute referencing

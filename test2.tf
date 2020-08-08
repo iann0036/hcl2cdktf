@@ -8,12 +8,6 @@ provider "aws" {
   c = "d"
 }
 
-provider "dnssimple" {
-  region = "us-east-1"
-  a = "b"
-  c = "d"
-}
-
 resource "aws_instance" "ubuntu" {
   ami               = "ami-0ff8a91507f77f867"
   instance_type     = "t3.nano"

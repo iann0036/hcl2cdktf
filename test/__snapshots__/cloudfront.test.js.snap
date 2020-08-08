@@ -2,7 +2,7 @@
 
 exports[`generate a cloudfront distribution resource 1`] = `
 "import { Construct } from 'constructs';
-import { App, TerraformStack, TerraformOutput } from 'cdktf';
+import { App, TerraformStack } from 'cdktf';
 import { S3Bucket, CloudfrontDistribution, AwsProvider } from './.gen/providers/aws';
 
 class MyStack extends TerraformStack {
@@ -53,7 +53,7 @@ class MyStack extends TerraformStack {
                     ],
                     maxTtl: 86400,
                     minTtl: 0,
-                    targetOriginId: s3_origin_id,
+                    targetOriginId: s3_origin_id!,
                     viewerProtocolPolicy: \\"allow-all\\"
                 }]
             ],
@@ -97,7 +97,7 @@ class MyStack extends TerraformStack {
                     maxTtl: 31536000,
                     minTtl: 0,
                     pathPattern: \\"/content/immutable/*\\",
-                    targetOriginId: s3_origin_id,
+                    targetOriginId: s3_origin_id!,
                     viewerProtocolPolicy: \\"redirect-to-https\\"
                 }],
                 [{
@@ -125,14 +125,14 @@ class MyStack extends TerraformStack {
                     maxTtl: 86400,
                     minTtl: 0,
                     pathPattern: \\"/content/*\\",
-                    targetOriginId: s3_origin_id,
+                    targetOriginId: s3_origin_id!,
                     viewerProtocolPolicy: \\"redirect-to-https\\"
                 }]
             ],
             origin: [
                 [{
-                    domainName: b.bucket_regional_domain_name,
-                    originId: s3_origin_id,
+                    domainName: b.bucket_regional_domain_name!,
+                    originId: s3_origin_id!,
                     s3OriginConfig: [
                         [{
                             originAccessIdentity: \\"origin-access-identity/cloudfront/ABCDEFG1234567\\"
@@ -168,14 +168,8 @@ class MyStack extends TerraformStack {
             ]
         });
 
-        new TerraformOutput(this, 'b', {
-            value: b
-        });
-
-        new TerraformOutput(this, 's3_distribution', {
-            value: s3_distribution
-        });
-
+        console.debug(b); // ensure TS doesn't complain
+        console.debug(s3_distribution); // ensure TS doesn't complain
     }
 }
 
