@@ -55,6 +55,12 @@ resource "aws_ssm_parameter" "reftest" {
   value = "${aws_instance.ubuntu.id}"
 }
 
+resource "aws_ssm_parameter" "reftestwithunderscore" {
+  name  = "ExampleAZ"
+  type  = "String"
+  value = "${aws_instance.ubuntu.availability_zone}"
+}
+
 data "aws_ssm_parameter" "ssmdatasource" {
   name = "someinstancetype"
 }

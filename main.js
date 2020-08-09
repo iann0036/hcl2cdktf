@@ -4,6 +4,8 @@ const commander = require('commander');
 const fs = require('fs');
 const HCL = require("js-hcl-parser");
 
+var tracked_references = [];
+
 function tfToCdktfProp(str) {
     var split = str.split("_");
     var ret = split.map(x => x[0].toUpperCase() + x.substr(1)).join('');
@@ -52,6 +54,7 @@ function outputMapCdktf(index, resources, type, tfvalues, name, datatype) {
 
 `;
     } else if (datatype == 'resource' || datatype == 'data') {
+        tracked_references.push(name.toLowerCase());
         output += `        const ${name.toLowerCase()} = new ${datatype == 'data' ? 'Data' : ''}${tfToCdktfType(type, (datatype == 'data'))}(this, '${name}', ${params});
 
 `;
@@ -79,7 +82,12 @@ function processCdktfParameter(param, spacing, index, resources, inArray) {
     }
     if (typeof param == "string") {
         if (param.startsWith("${") && param.endsWith("}")) { // refs
-            return param.substring(param.indexOf(".") + 1, param.length - 1) + "!"; // non-nullable handle
+            var first_dot = param.indexOf(".");
+            var second_dot = param.indexOf(".", first_dot + 1);
+
+            if (tracked_references.includes(param.substring(first_dot + 1, second_dot))) { // only if reference has been previously seen
+                return param.substring(first_dot + 1, second_dot) + tfToCdktfProp(param.substring(second_dot, param.length - 1)) + "!"; // non-nullable handle
+            }
         }
 
         var string_return = param;
