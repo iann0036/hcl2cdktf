@@ -5,6 +5,7 @@ const fs = require('fs');
 const HCL = require("js-hcl-parser");
 
 var tracked_references = [];
+var consumed_references = [];
 
 function tfToCdktfProp(str) {
     var split = str.split("_");
@@ -86,6 +87,7 @@ function processCdktfParameter(param, spacing, index, resources, inArray) {
             var second_dot = param.indexOf(".", first_dot + 1);
 
             if (tracked_references.includes(param.substring(first_dot + 1, second_dot))) { // only if reference has been previously seen
+                consumed_references.push(param.substring(first_dot + 1, second_dot));
                 return param.substring(first_dot + 1, second_dot) + tfToCdktfProp(param.substring(second_dot, param.length - 1)) + "!"; // non-nullable handle
             }
         }
@@ -303,39 +305,13 @@ class MyStack extends TerraformStack {
         }
     }
 
-    // section: TS complaint avoidance
+    // remove unused references
     if (!args.bare) {
-        if (isHcl2) {
-            if (plandata['data']) {
-                for (var resourcegroup of Object.values(plandata['data'])) {
-                    for (var resourcename of Object.keys(resourcegroup)) {
-                        compiled += `        console.debug(${resourcename.toLowerCase()}); // ensure TS doesn't complain
-`;
-                    }
-                }
-            }
-            if (plandata['resource']) {
-                for (var resourcegroup of Object.values(plandata['resource'])) {
-                    for (var resourcename of Object.keys(resourcegroup)) {
-                        compiled += `        console.debug(${resourcename.toLowerCase()}); // ensure TS doesn't complain
-`;
-                    }
-                }
-            }
-        } else {
-            if (plandata['data']) {
-                for (var resource of plandata['data']) {
-                    var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
-                    compiled += `        console.debug(${resourcename.toLowerCase()}); // ensure TS doesn't complain
-`;
-                }
-            }
-            if (plandata['resource']) {
-                for (var resource of plandata['resource']) {
-                    var resourcename = Object.keys(resource[Object.keys(resource)[0]][0])[0];
-                    compiled += `        console.debug(${resourcename.toLowerCase()}); // ensure TS doesn't complain
-`;
-                }
+        for (var ref of tracked_references) {
+            if (!consumed_references.includes(ref)) {
+                compiled = compiled.replace(`
+        const ${ref} = `, `
+        `);
             }
         }
     }
