@@ -40,8 +40,13 @@ function outputMapCdktf(index, resources, type, tfvalues, name, datatype) {
                 var optionvalue = processCdktfParameter(tfvalues[option], initialSpacing, index, resources, false);
 
                 if (typeof optionvalue !== "undefined") {
-                    params += `
+                    if (['locals'].includes(datatype)) {
+                        params += `
+            ${option}: ${optionvalue},`;
+                    } else {
+                        params += `
             ${tfToCdktfProp(option)}: ${optionvalue},`;
+                    }
                 }
             }
         }
