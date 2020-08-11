@@ -90,10 +90,15 @@ function processCdktfParameter(param, spacing, index, resources, inArray) {
         if (param.startsWith("${") && param.endsWith("}")) { // refs
             var first_dot = param.indexOf(".");
             var second_dot = param.indexOf(".", first_dot + 1);
+            if (second_dot == -1) {
+                return `"${param}"`;
+            }
 
             if (tracked_references.includes(param.substring(first_dot + 1, second_dot))) { // only if reference has been previously seen
                 consumed_references.push(param.substring(first_dot + 1, second_dot));
                 return param.substring(first_dot + 1, second_dot) + tfToCdktfProp(param.substring(second_dot, param.length - 1)) + "!"; // non-nullable handle
+            } else {
+                throw "UnseenReference";
             }
         }
 
@@ -278,11 +283,14 @@ class MyStack extends TerraformStack {
         }
     }
 
+    compiledOutputs = [];
+
     // section: locals (and any other escape hatches)
     for (var datatype of ['locals']) {
         if (plandata[datatype]) {
             if (isHcl2) {
-                compiled += outputMapCdktf(i, plandata[datatype], datatype, plandata[datatype], '', datatype);
+                //compiled += outputMapCdktf(0, plandata[datatype], datatype, plandata[datatype], '', datatype);
+                compiledOutputs.push([0, plandata[datatype], datatype, plandata[datatype], '', datatype]);
             } // ignores HCL1
         }
     }
@@ -294,7 +302,8 @@ class MyStack extends TerraformStack {
                 var i = 0;
                 for (var type of Object.keys(plandata[datatype])) {
                     for (var name of Object.keys(plandata[datatype][type])) {
-                        compiled += outputMapCdktf(i, plandata[datatype], type, plandata[datatype][type][name], name, datatype);
+                        //compiled += outputMapCdktf(i, plandata[datatype], type, plandata[datatype][type][name], name, datatype);
+                        compiledOutputs.push([i, plandata[datatype], type, plandata[datatype][type][name], name, datatype]);
                         i += 1;
                     }
                 }
@@ -304,10 +313,33 @@ class MyStack extends TerraformStack {
                     var tfvalues = getTfValues(plandata[datatype][i]);
                     var name = getTfName(plandata[datatype][i]);
 
-                    compiled += outputMapCdktf(i, plandata[datatype], type, tfvalues, name, datatype);
+                    //compiled += outputMapCdktf(i, plandata[datatype], type, tfvalues, name, datatype);
+                    compiledOutputs.push([i, plandata[datatype], type, tfvalues, name, datatype]);
                 }
             }
         }
+    }
+
+    var attempts = Math.pow(compiledOutputs.length, 2);
+    while (compiledOutputs.length && attempts > 0) {
+        var outputArgs = compiledOutputs.shift();
+
+        try {
+            compiled += outputMapCdktf(...outputArgs);
+        } catch (err) {
+            if (err == "UnseenReference") {
+                compiledOutputs.push(outputArgs);
+            } else {
+                throw err;
+            }
+        }
+
+        attempts -= 1;
+    }
+    if (compiledOutputs.length) {
+        console.error("Found circular dependency:");
+        console.log(compiledOutputs);
+        throw "CircularDependency";
     }
 
     // remove unused references
